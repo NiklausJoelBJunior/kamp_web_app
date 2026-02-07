@@ -28,6 +28,7 @@ const individualProfileSchema = new mongoose.Schema(
     bio: { type: String, default: "" },
     areasOfInterest: { type: [String], default: [] },
     howHeard: { type: String, default: "" },
+    image: { type: String, default: "" },
 
     setupStatus: {
       type: String,

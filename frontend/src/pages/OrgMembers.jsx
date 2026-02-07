@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { Users, Shield, Eye, UserCheck } from "lucide-react";
 import ConfirmationModal from "../components/ConfirmationModal";
 
-const AdminTeam = () => {
+const OrgMembers = () => {
   const [members, setMembers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
@@ -22,7 +23,8 @@ const AdminTeam = () => {
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    role: "member"
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -41,7 +43,7 @@ const AdminTeam = () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("kamp_token");
-      const response = await fetch("http://localhost:3001/api/admin/members", {
+      const response = await fetch("http://localhost:3001/api/organization/members", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -54,7 +56,7 @@ const AdminTeam = () => {
         console.error("Expected array from API, got:", data);
       }
     } catch (error) {
-      console.error("Error fetching admin members:", error);
+      console.error("Error fetching members:", error);
       setMembers([]);
     } finally {
       setIsLoading(false);
@@ -68,7 +70,8 @@ const AdminTeam = () => {
         name: member.name,
         email: member.email,
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        role: member.role
       });
     } else {
       setEditingMember(null);
@@ -76,7 +79,8 @@ const AdminTeam = () => {
         name: "",
         email: "",
         password: "",
-        confirmPassword: ""
+        confirmPassword: "",
+        role: "member"
       });
     }
     setError("");
@@ -100,8 +104,8 @@ const AdminTeam = () => {
     try {
       const token = localStorage.getItem("kamp_token");
       const url = editingMember 
-        ? `http://localhost:3001/api/admin/members/${editingMember._id}` 
-        : "http://localhost:3001/api/admin/members";
+        ? `http://localhost:3001/api/organization/members/${editingMember._id}` 
+        : "http://localhost:3001/api/organization/members";
       
       const method = editingMember ? "PUT" : "POST";
       
@@ -136,7 +140,7 @@ const AdminTeam = () => {
     setIsActionLoading(true);
     try {
       const token = localStorage.getItem("kamp_token");
-      const response = await fetch(`http://localhost:3001/api/admin/members/${id}`, {
+      const response = await fetch(`http://localhost:3001/api/organization/members/${id}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -153,12 +157,47 @@ const AdminTeam = () => {
     }
   };
 
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case "admin":
+        return <Shield className="w-4 h-4 text-purple-600" />;
+      case "member":
+        return <UserCheck className="w-4 h-4 text-blue-600" />;
+      case "viewer":
+        return <Eye className="w-4 h-4 text-gray-600" />;
+      default:
+        return <Users className="w-4 h-4 text-gray-600" />;
+    }
+  };
+
+  const getRoleBadge = (role) => {
+    const badges = {
+      admin: "bg-purple-100 text-purple-700",
+      member: "bg-blue-100 text-blue-700",
+      viewer: "bg-gray-100 text-gray-700",
+    };
+    return badges[role] || "bg-gray-100 text-gray-700";
+  };
+
+  const getRoleDescription = (role) => {
+    switch (role) {
+      case "admin":
+        return "Full access including member management";
+      case "member":
+        return "Can view and manage projects, but not members";
+      case "viewer":
+        return "Read-only access to dashboard and projects";
+      default:
+        return "Unknown role";
+    }
+  };
+
   return (
     <div className="p-4 lg:p-8">
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Team</h1>
-          <p className="text-gray-600">Manage administrators who can access the platform dashboard</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Team Members</h1>
+          <p className="text-gray-600">Manage team members who can access the organization dashboard</p>
         </div>
         <button
           onClick={() => handleOpenModal()}
@@ -167,7 +206,7 @@ const AdminTeam = () => {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
-          <span>Add Admin</span>
+          <span>Add Member</span>
         </button>
       </div>
 
@@ -175,21 +214,26 @@ const AdminTeam = () => {
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Name</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Member</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Email</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Role</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {isLoading ? (
               <tr>
-                <td colSpan="3" className="px-6 py-12 text-center">
+                <td colSpan="4" className="px-6 py-12 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 </td>
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan="3" className="px-6 py-12 text-center text-gray-500">No admin members found</td>
+                <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                  <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="font-medium">No team members yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Add members to collaborate on your organization</p>
+                </td>
               </tr>
             ) : (
               members.map((member) => (
@@ -197,17 +241,27 @@ const AdminTeam = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                        {member.name[0]}
+                        {member.name[0].toUpperCase()}
                       </div>
                       <span className="font-semibold text-gray-800">{member.name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{member.email}</td>
                   <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      {getRoleIcon(member.role)}
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${getRoleBadge(member.role)}`}>
+                        {member.role.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{getRoleDescription(member.role)}</p>
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="flex justify-end gap-2">
                       <button 
                         onClick={() => handleOpenModal(member)}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Edit member"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -216,12 +270,13 @@ const AdminTeam = () => {
                       <button 
                         onClick={() => openConfirmModal(
                           "danger",
-                          "Remove Admin",
-                          `Are you sure you want to remove ${member.name} from the admin team? They will lose all access to the dashboard.`,
-                          "Remove Admin",
+                          "Remove Member",
+                          `Are you sure you want to remove ${member.name} from your organization? They will lose all access to the dashboard.`,
+                          "Remove Member",
                           () => handleDelete(member._id)
                         )}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete member"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -236,25 +291,25 @@ const AdminTeam = () => {
         </table>
       </div>
 
-      {/* Admin Modal */}
+      {/* Member Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-scaleIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-8">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 uppercase tracking-tight">
-                {editingMember ? "Edit Admin" : "Add New Admin"}
+                {editingMember ? "Edit Member" : "Add New Member"}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Member Name</label>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Full Name</label>
                   <input
                     required
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-bold"
-                    placeholder="Full Name"
+                    placeholder="John Doe"
                   />
                 </div>
                 <div>
@@ -265,8 +320,21 @@ const AdminTeam = () => {
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-bold"
-                    placeholder="admin@kamp.com"
+                    placeholder="john@organization.com"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Role</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-600 font-bold"
+                  >
+                    <option value="admin">Admin - Full Access</option>
+                    <option value="member">Member - Standard Access</option>
+                    <option value="viewer">Viewer - Read Only</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-2">{getRoleDescription(formData.role)}</p>
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
@@ -366,4 +434,4 @@ const AdminTeam = () => {
   );
 };
 
-export default AdminTeam;
+export default OrgMembers;

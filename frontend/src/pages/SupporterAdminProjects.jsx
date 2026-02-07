@@ -2,54 +2,36 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useOutletContext } from "react-router-dom";
 import { FolderKanban, Calendar, DollarSign, Users, ExternalLink, FileText, Clock, CheckCircle, XCircle, Eye } from "lucide-react";
 
-const OrgAdminProjects = () => {
+const SupporterAdminProjects = () => {
   const { id } = useParams();
-  const { organization } = useOutletContext();
-  const [projects, setProjects] = useState([]);
+  const { supporter } = useOutletContext();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("projects");
 
-  const userId = organization?.userId?._id || organization?.userId;
+  const userId = supporter?.userId?._id || supporter?.userId;
 
   useEffect(() => {
-    fetchProjects();
     if (userId) {
       fetchApplications();
     }
   }, [id, userId]);
-
-  const fetchProjects = async () => {
-    try {
-      const token = localStorage.getItem("adminToken") || localStorage.getItem("kamp_token");
-      const res = await fetch(`http://localhost:3001/api/admin/organizations/${id}/projects`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setProjects(data);
-      }
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchApplications = async () => {
     try {
       const res = await fetch(`http://localhost:3001/api/applications/user/${userId}`);
       if (res.ok) {
         const data = await res.json();
-        setApplications(data.filter(app => app.applicantType === "organization"));
+        setApplications(data.filter(app => app.applicantType === "supporter"));
       }
     } catch (error) {
       console.error("Error fetching applications:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const involvedProjects = projects; // Projects they created
-  const participatingProjects = applications.filter(app => app.status === "accepted");
+  const involvedProjects = applications.filter(app => app.status === "accepted");
   const unrespondedCount = applications.filter(app => app.status === "pending" || app.status === "reviewed").length;
 
   const statusColors = {
@@ -81,7 +63,7 @@ const OrgAdminProjects = () => {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Projects & Applications</h2>
         <p className="text-sm text-gray-500">
-          View all projects and applications for this organization
+          View all projects and applications for this supporter
         </p>
       </div>
 
@@ -89,24 +71,14 @@ const OrgAdminProjects = () => {
       <div className="mb-6 border-b border-gray-200">
         <div className="flex gap-6">
           <button
-            onClick={() => setActiveTab("managed")}
+            onClick={() => setActiveTab("projects")}
             className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === "managed"
+              activeTab === "projects"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Managed Projects ({involvedProjects.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("involved")}
-            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === "involved"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Involved Projects ({participatingProjects.length})
+            Involved Projects ({involvedProjects.length})
           </button>
           <button
             onClick={() => setActiveTab("applications")}
@@ -121,115 +93,20 @@ const OrgAdminProjects = () => {
         </div>
       </div>
 
-      {/* Managed Projects Tab */}
-      {activeTab === "managed" && (
+      {/* Projects Tab */}
+      {activeTab === "projects" && (
         <>
           {involvedProjects.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
               <FolderKanban className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Managed Projects</h3>
-              <p className="text-gray-500">
-                This organization hasn&apos;t created any projects on KAMP yet.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {involvedProjects.map((project) => {
-                const progress = project.goal > 0 
-                  ? Math.round((project.raised / project.goal) * 100)
-                  : 0;
-
-                return (
-                  <div key={project._id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-blue-300 transition shadow-sm">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                          <Link
-                            to={`/admin/projects/${project._id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Link>
-                        </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        project.status === "Active" 
-                          ? "bg-green-100 text-green-700"
-                          : project.status === "Completed"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}>
-                        {project.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">End Date</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {new Date(project.endDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">Raised / Goal</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            ${project.raised?.toLocaleString()} / ${project.goal?.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">Donors</p>
-                          <p className="text-sm font-medium text-gray-900">{project.donors || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs text-gray-500">Funding Progress</span>
-                        <span className="text-xs font-medium text-gray-900">{progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${Math.min(progress, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Involved Projects Tab (Same as Supporter) */}
-      {activeTab === "involved" && (
-        <>
-          {participatingProjects.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <FolderKanban className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Involved Projects</h3>
               <p className="text-gray-500">
-                This organization is not officially involved in any external projects yet.
+                This supporter is not officially involved in any projects yet.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {participatingProjects.map((app) => (
+              {involvedProjects.map((app) => (
                 <div key={app._id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-blue-300 transition shadow-sm">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
@@ -274,13 +151,13 @@ const OrgAdminProjects = () => {
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications History</h3>
               <p className="text-gray-500">
-                This organization has no previous or pending applications.
+                This supporter has no previous or pending applications.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {applications.map((app) => (
-                <div key={app._id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-blue-300 transition">
+                <div key={app._id} className="bg-white rounded-xl border border-gray-200 p-6 hover:border-blue-300 transition shadow-sm">
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -299,7 +176,7 @@ const OrgAdminProjects = () => {
                   </div>
 
                   {app.message && (
-                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-100">
                       <p className="text-sm text-gray-600 italic">&ldquo;{app.message}&rdquo;</p>
                     </div>
                   )}
@@ -332,4 +209,4 @@ const OrgAdminProjects = () => {
   );
 };
 
-export default OrgAdminProjects;
+export default SupporterAdminProjects;

@@ -7,29 +7,19 @@ const applicationSchema = new mongoose.Schema(
       ref: "Project",
       required: true,
     },
-    organizationName: {
-      type: String,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      trim: true,
     },
-    representativeName: {
+    applicantType: {
       type: String,
-      required: true,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-    },
-    phone: {
-      type: String,
+      enum: ["organization", "supporter"],
       required: true,
     },
     involvementType: {
       type: String,
-      enum: ["Technical Support", "Funding", "Resource Provision", "Operations", "Other"],
+      enum: ["Technical Support", "Funding", "Resource Provision", "Operations", "Volunteering", "Other"],
       default: "Other",
     },
     message: {
@@ -41,8 +31,15 @@ const applicationSchema = new mongoose.Schema(
       enum: ["pending", "reviewed", "accepted", "rejected"],
       default: "pending",
     },
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
+
+// Prevent duplicate applications
+applicationSchema.index({ projectId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model("Application", applicationSchema);

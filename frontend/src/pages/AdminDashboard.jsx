@@ -46,6 +46,7 @@ const AdminDashboard = () => {
   const totalRaised = projects.reduce((sum, p) => sum + (p.raised || 0), 0);
   const totalDonors = projects.reduce((sum, p) => sum + (p.donors || 0), 0);
   const uniqueNgos = new Set(projects.flatMap((p) => p.ngos || [])).size;
+  const unrespondedApplications = applications.filter(app => ["pending", "reviewed"].includes(app.status));
   const recentProjects = [...projects]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 3);
@@ -115,7 +116,7 @@ const AdminDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium mb-1">NGO Inquiries</p>
-              <p className="text-3xl font-bold text-gray-800">{applications.length}</p>
+              <p className="text-3xl font-bold text-gray-800">{unrespondedApplications.length}</p>
             </div>
             <div className="text-4xl opacity-20">📩</div>
           </div>

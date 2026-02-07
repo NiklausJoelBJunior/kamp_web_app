@@ -22,6 +22,8 @@ app.use("/api/admin/organizations", require("./routes/adminOrgRoutes"));
 app.use("/api/admin/supporters", require("./routes/adminSupporterRoutes"));
 app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/profiles", require("./routes/profileRoutes"));
+app.use("/api/organization/members", require("./routes/orgMemberRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
 
 app.get("/api", (req, res) => {
   res.json({ message: "Welcome to KAMP API" });

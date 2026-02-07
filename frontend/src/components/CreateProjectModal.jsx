@@ -7,7 +7,25 @@ const KARAMOJA_DISTRICTS = [
 
 const TARGET_AUDIENCES = ["Men", "Women", "Kids", "Elderly", "All Communities"];
 
-const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCategories }) => {
+const DEFAULT_NGOS = [
+  "Water4Life Uganda", "FeedKaramoja", "AgroAid Karamoja", 
+  "SheFuture Foundation", "HealthReach Uganda", "SunlightEd", 
+  "ActionAid Karamoja", "Skills4K", "Green Uganda"
+];
+
+const DEFAULT_CATEGORIES = [
+  "Health", "Education", "Water & Sanitation", "Agriculture", 
+  "Gender & Development", "Energy", "Food & Nutrition", 
+  "Environment", "Economic Development"
+];
+
+const CreateProjectModal = ({ 
+  isOpen, 
+  onClose, 
+  onCreate, 
+  verifiedNGOs = DEFAULT_NGOS, 
+  projectCategories = DEFAULT_CATEGORIES 
+}) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [newProject, setNewProject] = useState({
     name: "",
@@ -109,7 +127,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCa
 
           <div className="flex items-center justify-between relative px-8">
             <div className="absolute top-5 left-12 right-12 h-0.5 bg-white/20 z-0" />
-            {steps.map((step) => (
+            {steps?.map((step) => (
               <div key={step.id} className="relative z-10 flex flex-col items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-500 border-2 ${
                   currentStep >= step.id 
@@ -148,7 +166,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCa
                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <label className="block text-sm font-bold text-slate-700 mb-4 text-center">Vertical Categories</label>
                       <div className="flex flex-wrap justify-center gap-2">
-                        {projectCategories.map(cat => (
+                        {projectCategories?.map(cat => (
                           <button
                             key={cat}
                             type="button"
@@ -168,7 +186,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCa
                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <label className="block text-sm font-bold text-slate-700 mb-4 text-center">Deployment Partners</label>
                       <div className="flex flex-wrap justify-center gap-2">
-                        {verifiedNGOs.map(ngo => (
+                        {verifiedNGOs?.map(ngo => (
                           <button
                             key={ngo}
                             type="button"
@@ -197,7 +215,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCa
                     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                       <label className="block text-sm font-bold text-slate-700 mb-5">Primary Districts (Select All That Apply)</label>
                       <div className="grid grid-cols-3 gap-3">
-                        {KARAMOJA_DISTRICTS.map(dist => (
+                        {KARAMOJA_DISTRICTS?.map(dist => (
                           <button
                             key={dist}
                             type="button"
@@ -217,7 +235,7 @@ const CreateProjectModal = ({ isOpen, onClose, onCreate, verifiedNGOs, projectCa
                     <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                       <label className="block text-sm font-bold text-slate-700 mb-5">High-Priority Beneficiary Groups</label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {TARGET_AUDIENCES.map(target => (
+                        {TARGET_AUDIENCES?.map(target => (
                           <button
                             key={target}
                             type="button"

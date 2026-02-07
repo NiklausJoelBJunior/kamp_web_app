@@ -7,6 +7,16 @@ const projectSchema = new mongoose.Schema({
   districts: { type: [String], required: true },
   targetAudience: { type: [String], required: true },
   status: { type: String, default: 'Planned' },
+  approvalStatus: { 
+    type: String, 
+    enum: ['pending', 'approved', 'rejected'], 
+    default: 'pending' 
+  },
+  creatorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
   goal: { type: Number, required: true },

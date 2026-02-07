@@ -32,9 +32,10 @@ const orgProfileSchema = new mongoose.Schema(
     registrationNumber: { type: String, default: "" },
     foundingYear: { type: Number, default: null },
     teamSize: { type: String, default: "" },
-    missionStatement: { type: String, default: "" },
+     missionStatement: { type: String, default: "" },
     areasOfOperation: { type: [String], default: [] },
     previousProjects: { type: [String], default: [] },
+    logo: { type: String, default: "" },
 
     setupStatus: {
       type: String,

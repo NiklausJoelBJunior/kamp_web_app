@@ -1,33 +1,113 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import DonationForm from "../components/DonationForm";
+import ProjectInfoModal from "../components/ProjectInfoModal";
+import ApplyProjectModal from "../components/ApplyProjectModal";
+import CreateProjectModal from "../components/CreateProjectModal";
+import { Plus } from "lucide-react";
 
 const Projects = () => {
-  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await fetch("http://localhost:3001/api/projects");
-        if (!response.ok) {
-          throw new Error("Failed to fetch projects");
-        }
-        const data = await response.json();
-        const publicProjects = data.filter((project) => project.isPublic);
-        setProjects(publicProjects);
-      } catch (err) {
-        console.error("Error fetching projects:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Modal state
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showDonationForm, setShowDonationForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Track applied projects  {projectId: status}
+  const [appliedMap, setAppliedMap] = useState({});
+
+  const user = JSON.parse(localStorage.getItem("kamp_user") || "null");
+  const token = localStorage.getItem("kamp_token");
+  const isLoggedIn = !!user && !!token;
+
+  useEffect(() => {
     fetchProjects();
+    if (isLoggedIn) fetchMyApplications();
   }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch("http://localhost:3001/api/projects", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error("Failed to fetch projects");
+      const data = await response.json();
+      setProjects(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMyApplications = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/applications/my-applications", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const map = {};
+        data.forEach((a) => { map[a.projectId?._id || a.projectId] = a.status; });
+        setAppliedMap(map);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleCardClick = (project) => {
+    setSelectedProject(project);
+    setShowInfoModal(true);
+  };
+
+  const handleApply = (project) => {
+    if (!isLoggedIn) {
+      alert("Please log in or register first to apply for a project.");
+      return;
+    }
+    setShowInfoModal(false);
+    setSelectedProject(project);
+    setShowApplyModal(true);
+  };
+
+  const handleDonate = (project) => {
+    setShowInfoModal(false);
+    setSelectedProject(project);
+    setShowDonationForm(true);
+  };
+
+  const handleApplySuccess = (projectId) => {
+    setAppliedMap((prev) => ({ ...prev, [projectId]: "pending" }));
+    setShowApplyModal(false);
+    setSelectedProject(null);
+  };
+
+  const handleCreateProject = async (newProjectData) => {
+    try {
+      const response = await fetch("http://localhost:3001/api/projects", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(newProjectData),
+      });
+      if (response.ok) {
+        setShowCreateModal(false);
+        fetchProjects();
+        alert("Project submitted for review successfully!");
+      } else {
+        const error = await response.json();
+        alert(`Failed to create project: ${error.message}`);
+      }
+    } catch (error) {
+      console.error("Error creating project:", error);
+    }
+  };
 
   return (
     <div>
@@ -43,10 +123,38 @@ const Projects = () => {
         <div className="absolute inset-0 bg-black/50"></div>
         <div className="relative max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-4xl font-bold mb-4">Projects</h1>
-          <p className="text-blue-100 text-lg max-w-2xl mx-auto">
+          <p className="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
             Browse ongoing projects in Karamoja. Donate directly or apply as an
             NGO to get involved and help manage project resources.
           </p>
+          
+          {isLoggedIn && (user.type === "Organization" || user.type === "Supporter") && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/25"
+            >
+              <Plus className="w-5 h-5" />
+              Create New Project
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Stats Cards */}
+      <section className="max-w-7xl mx-auto px-4 -mt-10 mb-12 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+            <p className="text-gray-500 text-sm font-medium">Approved Projects</p>
+            <p className="text-3xl font-bold text-gray-900">{projects.filter(p => p.approvalStatus === 'approved').length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+            <p className="text-gray-500 text-sm font-medium">My Submissions</p>
+            <p className="text-3xl font-bold text-blue-600">{projects.filter(p => p.creatorId === user?.id || p.creatorId?._id === user?.id).length}</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+            <p className="text-gray-500 text-sm font-medium">Total Raised</p>
+            <p className="text-3xl font-bold text-green-600">$1.4M</p>
+          </div>
         </div>
       </section>
 
@@ -78,82 +186,105 @@ const Projects = () => {
                 const progress = project.goal > 0 
                   ? Math.round((project.raised / project.goal) * 100)
                   : 0;
+                const applied = appliedMap[project._id];
                 
                 return (
                   <div
                     key={project._id}
-                    onClick={() => navigate(`/projects/${project._id}`)}
-                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col cursor-pointer group"
+                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition flex flex-col group"
                   >
-                    <div className="relative h-48">
-                      <img 
-                        src={project.image || "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=500&h=300&fit=crop"}
-                        alt={project.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                        {project.categories && project.categories.slice(0, 2).map((cat, idx) => (
-                          <span key={idx} className="text-[10px] font-bold uppercase text-white bg-blue-600/80 backdrop-blur-sm px-2 py-1 rounded">
-                            {cat}
-                          </span>
-                        ))}
-                        {!project.isOpenForDonations && (
-                          <span className="text-[10px] font-bold uppercase text-white bg-slate-600/80 backdrop-blur-sm px-2 py-1 rounded">
-                            Direct Funding Closed
-                          </span>
+                    {/* Clickable image + info area opens modal */}
+                    <div className="cursor-pointer" onClick={() => handleCardClick(project)}>
+                      <div className="relative h-48">
+                        <img 
+                          src={project.image || "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=500&h=300&fit=crop"}
+                          alt={project.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                          {project.categories?.slice(0, 2).map((cat, idx) => (
+                            <span key={idx} className="text-[10px] font-bold uppercase text-white bg-blue-600/80 backdrop-blur-sm px-2 py-1 rounded">
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                        {applied && (
+                          <div className="absolute top-4 right-4">
+                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded backdrop-blur-sm ${
+                              applied === "accepted" ? "bg-green-500/90 text-white" :
+                              applied === "rejected" ? "bg-red-500/90 text-white" :
+                              "bg-amber-500/90 text-white"
+                            }`}>
+                              {applied === "pending" ? "Applied" : applied.charAt(0).toUpperCase() + applied.slice(1)}
+                            </span>
+                          </div>
+                        )}
+                        {project.approvalStatus && project.approvalStatus !== 'approved' && (
+                          <div className="absolute bottom-4 right-4">
+                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded backdrop-blur-sm ${
+                              project.approvalStatus === "rejected" ? "bg-red-600/90 text-white" :
+                              "bg-amber-600/90 text-white"
+                            }`}>
+                              {project.approvalStatus.toUpperCase()}
+                            </span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                    
-                    <div className="p-6 flex flex-col flex-1">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-1">
-                        {project.name}
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                        {project.description}
-                      </p>
                       
-                      <div className="mt-auto">
-                        <p className="text-xs text-gray-500 mb-4 flex items-center">
-                          <span className="mr-1">By</span>
-                          <span className="font-semibold text-gray-700 truncate">
-                            {project.ngos && project.ngos.length > 0 ? project.ngos.join(", ") : "Unknown NGO"}
-                          </span>
+                      <div className="p-6 pb-3">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-1">{project.name}</h3>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{project.description}</p>
+                        <p className="text-xs text-gray-500 mb-3 font-medium">
+                          By <span className="font-bold text-gray-700">{project.creatorId?._id === user?.id || project.creatorId === user?.id ? "Me (Project Head)" : (project.creatorId?.name || project.ngos?.join(", ") || "Unknown NGO")}</span>
                         </p>
-
-                        {/* Progress Bar */}
-                        <div className="mb-4">
+                        {/* Progress */}
+                        <div className="mb-1">
                           <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-700 font-medium">
-                              ${project.raised?.toLocaleString()} raised
-                            </span>
-                            <span className="text-gray-500">
-                              ${project.goal?.toLocaleString()} goal
-                            </span>
+                            <span className="text-gray-700 font-medium">${project.raised?.toLocaleString()} raised</span>
+                            <span className="text-gray-500">${project.goal?.toLocaleString()} goal</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${Math.min(progress, 100)}%` }}
-                            />
+                            <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%` }} />
                           </div>
-                          <div className="text-right mt-1">
-                            <span className="text-xs font-bold text-blue-600">{progress}%</span>
-                          </div>
+                          <p className="text-right text-xs font-bold text-blue-600 mt-1">{progress}%</p>
                         </div>
-
-                        <button className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2">
-                          <span>{project.isOpenForDonations ? "Donate" : "View Details"}</span>
-                          {project.isOpenForDonations && (
-                            <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
-                              <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                              </svg>
-                              {project.donors || 0}
-                            </span>
-                          )}
-                        </button>
                       </div>
+                    </div>
+
+                    {/* Action buttons (always visible) */}
+                    <div className="px-6 pb-5 mt-auto flex gap-2">
+                      {project.creatorId?._id === user?.id || project.creatorId === user?.id ? (
+                        <div className="w-full py-2.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-black text-center uppercase tracking-widest border border-blue-100">
+                          Project Head
+                        </div>
+                      ) : (
+                        <>
+                          {project.isOpenForDonations && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDonate(project); }}
+                              className="flex-1 bg-green-600 text-white py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+                            >
+                              Donate
+                            </button>
+                          )}
+                          {applied ? (
+                            <div className={`flex-1 py-2.5 rounded-lg font-semibold text-center text-sm ${
+                              applied === "accepted" ? "bg-green-100 text-green-700" :
+                              applied === "rejected" ? "bg-red-100 text-red-700" :
+                              "bg-amber-100 text-amber-700"
+                            }`}>
+                              {applied === "pending" ? "Applied ✓" : applied.charAt(0).toUpperCase() + applied.slice(1)}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleApply(project); }}
+                              className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                            >
+                              Apply
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -181,6 +312,48 @@ const Projects = () => {
           </Link>
         </div>
       </section>
+
+      {/* Project Info Modal */}
+      {showInfoModal && selectedProject && (
+        <ProjectInfoModal
+          project={selectedProject}
+          onClose={() => { setShowInfoModal(false); setSelectedProject(null); }}
+          onApply={handleApply}
+          onDonate={handleDonate}
+          hasApplied={!!appliedMap[selectedProject._id]}
+          applicationStatus={appliedMap[selectedProject._id]}
+          currentUserId={user?.id}
+        />
+      )}
+
+      {/* Apply Modal */}
+      {showApplyModal && selectedProject && (
+        <ApplyProjectModal
+          project={selectedProject}
+          onClose={() => { setShowApplyModal(false); setSelectedProject(null); }}
+          onSuccess={handleApplySuccess}
+        />
+      )}
+
+      {/* Donation Form */}
+      {showDonationForm && selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowDonationForm(false); setSelectedProject(null); }} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+            <DonationForm
+              project={selectedProject}
+              onComplete={() => { setShowDonationForm(false); setSelectedProject(null); fetchProjects(); }}
+              onCancel={() => { setShowDonationForm(false); setSelectedProject(null); }}
+            />
+          </div>
+        </div>
+      )}
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateProject}
+      />
     </div>
   );
 };

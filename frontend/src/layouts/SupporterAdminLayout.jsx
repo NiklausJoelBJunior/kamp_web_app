@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Outlet, Link, useParams, useLocation } from "react-router-dom";
-import { Users, LayoutDashboard, Settings, ArrowLeft } from "lucide-react";
+import { Users, LayoutDashboard, Settings, ArrowLeft, FolderKanban } from "lucide-react";
 
 const SupporterAdminLayout = () => {
   const { id } = useParams();
@@ -37,6 +37,11 @@ const SupporterAdminLayout = () => {
       label: "Overview",
       path: `/admin/supporter/${id}/overview`,
       icon: LayoutDashboard,
+    },
+    {
+      label: "Projects",
+      path: `/admin/supporter/${id}/projects`,
+      icon: FolderKanban,
     },
     {
       label: "Settings",

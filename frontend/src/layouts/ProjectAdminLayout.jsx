@@ -1,27 +1,37 @@
 import { useState, useEffect } from "react";
 import { useParams, NavLink, Outlet, Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ArrowLeft, ExternalLink, Settings } from "lucide-react";
+import { LayoutDashboard, Users, ArrowLeft, ExternalLink, Settings, Building2, Heart } from "lucide-react";
 
 const ProjectAdminLayout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({ organisations: 0, supporters: 0 });
 
   useEffect(() => {
-    const fetchProject = async () => {
+    const fetchProjectAndCounts = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/projects/${id}`);
-        if (!response.ok) throw new Error("Project not found");
-        const data = await response.json();
-        setProject(data);
+        const [projRes, countsRes] = await Promise.all([
+          fetch(`http://localhost:3001/api/projects/${id}`),
+          fetch(`http://localhost:3001/api/applications/project/${id}/unresponded-counts`)
+        ]);
+
+        if (!projRes.ok) throw new Error("Project not found");
+        const projectData = await projRes.json();
+        setProject(projectData);
+
+        if (countsRes.ok) {
+          const countsData = await countsRes.json();
+          setCounts(countsData);
+        }
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProject();
+    fetchProjectAndCounts();
   }, [id]);
 
   if (loading) return (
@@ -43,8 +53,23 @@ const ProjectAdminLayout = () => {
   );
 
   const navItems = [
-    { label: "Overview", path: `/admin/projects/${id}/overview`, icon: <LayoutDashboard className="w-4 h-4" /> },
-    { label: "Organisations", path: `/admin/projects/${id}/organisations`, icon: <Users className="w-4 h-4" /> },
+    { 
+      label: "Overview", 
+      path: `/admin/projects/${id}/overview`, 
+      icon: <LayoutDashboard className="w-4 h-4" /> 
+    },
+    { 
+      label: "Organisations", 
+      path: `/admin/projects/${id}/organisations`, 
+      icon: <Building2 className="w-4 h-4" />,
+      count: counts.organisations
+    },
+    { 
+      label: "Supporters", 
+      path: `/admin/projects/${id}/supporters`, 
+      icon: <Heart className="w-4 h-4" />,
+      count: counts.supporters
+    },
   ];
 
   return (
@@ -63,7 +88,7 @@ const ProjectAdminLayout = () => {
               </Link>
               <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900 truncate max-w-[200px] sm:max-w-md">
+                <h1 className="text-lg font-bold text-slate-900 truncate max-w-50 sm:max-w-md">
                   {project.name}
                 </h1>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest hidden sm:block">
@@ -104,6 +129,15 @@ const ProjectAdminLayout = () => {
               >
                 {item.icon}
                 {item.label}
+                {item.count > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                    window.location.pathname.includes(item.path)
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-600"
+                  }`}>
+                    {item.count}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -112,7 +146,15 @@ const ProjectAdminLayout = () => {
 
       {/* Page Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet context={{ project, setProject }} />
+        <Outlet context={{ 
+          project, 
+          setProject, 
+          refreshCounts: () => {
+            fetch(`http://localhost:3001/api/applications/project/${id}/unresponded-counts`)
+              .then(res => res.json())
+              .then(data => setCounts(data));
+          } 
+        }} />
       </main>
     </div>
   );

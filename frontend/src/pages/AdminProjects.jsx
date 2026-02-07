@@ -20,6 +20,7 @@ const AdminProjects = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [applicationCounts, setApplicationCounts] = useState({});
   
   // Modal State
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -36,6 +37,9 @@ const AdminProjects = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [activeTab, setActiveTab] = useState("all");
+
+  const token = localStorage.getItem("kamp_token");
 
   useEffect(() => {
     fetchProjects();
@@ -49,13 +53,66 @@ const AdminProjects = () => {
   const fetchProjects = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("http://localhost:3001/api/projects");
+      const response = await fetch("http://localhost:3001/api/projects", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error("Failed to fetch projects");
       const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("Invalid projects data received");
       setProjects(data);
+      
+      // Fetch application counts for each project
+      const counts = {};
+      await Promise.all(data.map(async (project) => {
+        try {
+          const res = await fetch(`http://localhost:3001/api/applications/project/${project._id}/counts`);
+          if (res.ok) {
+            const count = await res.json();
+            counts[project._id] = count;
+          }
+        } catch { /* ignore */ }
+      }));
+      setApplicationCounts(counts);
     } catch (error) {
       console.error("Error fetching projects:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleApproveProject = async (projectId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/projects/${projectId}/approve`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        fetchProjects();
+        setConfirmModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error approving project:", error);
+    }
+  };
+
+  const handleRejectProject = async (projectId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/projects/${projectId}/reject`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        fetchProjects();
+        setConfirmModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error rejecting project:", error);
     }
   };
 
@@ -98,7 +155,10 @@ const AdminProjects = () => {
     try {
       const response = await fetch("http://localhost:3001/api/projects", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(newProjectData),
       });
       if (response.ok) {
@@ -140,12 +200,41 @@ const AdminProjects = () => {
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <p className="text-gray-500 text-sm font-medium">Active Funding</p>
-          <p className="text-2xl font-bold text-gray-800">$1.2M</p>
+          <p className="text-2xl font-bold text-gray-800">
+            ${projects.reduce((acc, p) => acc + (p.raised || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </p>
         </div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <p className="text-gray-500 text-sm font-medium">Pending Approvals</p>
-          <p className="text-2xl font-bold text-blue-600">8</p>
+          <p className="text-2xl font-bold text-amber-600">{projects.filter(p => !p.approvalStatus || p.approvalStatus === 'pending').length}</p>
         </div>
+      </div>
+
+      {/* Approval Queue Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit border border-gray-200 overflow-x-auto max-w-full">
+        {[
+          { id: 'all', label: 'All Projects', count: projects.length },
+          { id: 'pending', label: 'Pending Review', count: projects.filter(p => !p.approvalStatus || p.approvalStatus === 'pending').length },
+          { id: 'approved', label: 'Approved', count: projects.filter(p => p.approvalStatus === 'approved').length },
+          { id: 'rejected', label: 'Rejected', count: projects.filter(p => p.approvalStatus === 'rejected').length }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`whitespace-nowrap flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === tab.id
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span>{tab.label}</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+              activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'
+            }`}>
+              {tab.count}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Filters Overlay */}
@@ -194,6 +283,15 @@ const AdminProjects = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {projects
             .filter(project => {
+              // Approval Status Filter
+              if (activeTab === 'pending') {
+                if (project.approvalStatus && project.approvalStatus !== 'pending') return false;
+              } else if (activeTab === 'approved') {
+                if (project.approvalStatus !== 'approved') return false;
+              } else if (activeTab === 'rejected') {
+                if (project.approvalStatus !== 'rejected') return false;
+              }
+
               const matchesSearch = 
                 (project.name?.toLowerCase().includes((searchTerm || "").toLowerCase())) ||
                 (project.ngos?.some(ngo => typeof ngo === 'string' && ngo.toLowerCase().includes((searchTerm || "").toLowerCase())));
@@ -220,6 +318,15 @@ const AdminProjects = () => {
                       alt={project.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
+                    <div className="absolute top-4 left-4">
+                      <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded shadow-sm ${
+                        project.approvalStatus === 'approved' ? 'bg-green-500 text-white' :
+                        project.approvalStatus === 'rejected' ? 'bg-red-500 text-white' :
+                        'bg-amber-500 text-white'
+                      }`}>
+                        {project.approvalStatus || 'Pending Approval'}
+                      </span>
+                    </div>
                     <div className="absolute top-4 right-4">
                       <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-sm ${getStatusColor(project.status)}`}>
                         {project.status}
@@ -242,7 +349,7 @@ const AdminProjects = () => {
                       >
                         {project.name}
                       </Link>
-                      <p className="text-sm text-gray-600 font-medium">by {project.ngos?.join(", ")}</p>
+                      <p className="text-sm text-gray-600 font-medium">by {project.creatorId?.name || (project.ngos?.join(", ") || "Unknown")}</p>
                     </div>
 
                     <div className="space-y-4 mb-6">
@@ -258,6 +365,7 @@ const AdminProjects = () => {
                           />
                         </div>
                       </div>
+                    </div>
 
                       <div className="flex justify-between items-center py-3 border-t border-b border-gray-50 text-sm">
                         <div>
@@ -273,16 +381,57 @@ const AdminProjects = () => {
                           <p className="font-bold text-gray-800">${project.goal.toLocaleString()}</p>
                         </div>
                       </div>
-                    </div>
+
+                      {/* Application Counts */}
+                      {applicationCounts[project._id] && (applicationCounts[project._id].organizations > 0 || applicationCounts[project._id].supporters > 0) && (
+                        <div className="flex gap-3 text-xs">
+                          {applicationCounts[project._id].organizations > 0 && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-700 rounded-lg">
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                              </svg>
+                              <span className="font-bold">{applicationCounts[project._id].organizations}</span>
+                              <span>Org{applicationCounts[project._id].organizations !== 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                          {applicationCounts[project._id].supporters > 0 && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg">
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                              </svg>
+                              <span className="font-bold">{applicationCounts[project._id].supporters}</span>
+                              <span>Supporter{applicationCounts[project._id].supporters !== 1 ? 's' : ''}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     <div className="mt-auto flex gap-2">
-                      <Link 
-                        to={`/admin/projects/${project._id}`}
-                        target="_blank"
-                        className="flex-1 px-4 py-2 bg-gray-50 hover:bg-blue-600 hover:text-white text-gray-700 text-sm font-semibold rounded-lg transition-all duration-200 text-center"
-                      >
-                        Management
-                      </Link>
+                      {project.approvalStatus === 'pending' && (
+                        <>
+                          <button 
+                            onClick={() => handleApproveProject(project._id)}
+                            className="flex-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition-all duration-200 text-center"
+                          >
+                            Approve
+                          </button>
+                          <button 
+                            onClick={() => handleRejectProject(project._id)}
+                            className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-all duration-200 text-center"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {project.approvalStatus !== 'pending' && (
+                        <Link 
+                          to={`/admin/projects/${project._id}`}
+                          target="_blank"
+                          className="flex-1 px-4 py-2 bg-gray-50 hover:bg-blue-600 hover:text-white text-gray-700 text-sm font-semibold rounded-lg transition-all duration-200 text-center"
+                        >
+                          Management
+                        </Link>
+                      )}
                       <button 
                         onClick={() => setSelectedProject(project)}
                         className="px-3 py-2 bg-white border border-gray-200 hover:border-blue-500 hover:text-blue-600 transition rounded-lg"
@@ -341,11 +490,17 @@ const AdminProjects = () => {
                 <div className="relative h-64 md:h-full">
                   <img src={selectedProject.image} alt={selectedProject.name} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-8 text-white">
-                    <span className={`self-start text-xs font-bold px-3 py-1 rounded-full mb-4 ${getStatusColor(selectedProject.status)}`}>
-                      {selectedProject.status}
+                    <span className={`self-start text-[10px] uppercase font-black px-3 py-1 rounded-full mb-4 shadow-lg ${
+                      selectedProject.approvalStatus === 'approved' ? 'bg-green-500' :
+                      selectedProject.approvalStatus === 'rejected' ? 'bg-red-500' :
+                      'bg-amber-500'
+                    }`}>
+                      {selectedProject.approvalStatus === 'approved' ? 'Verified & Approved' : 
+                       selectedProject.approvalStatus === 'rejected' ? 'Review Rejected' : 
+                       'Awaiting Admin Review'}
                     </span>
                     <h2 className="text-3xl font-bold mb-2">{selectedProject.name}</h2>
-                    <p className="text-blue-200 font-medium">By {selectedProject.ngos?.join(", ")}</p>
+                    <p className="text-blue-200 font-medium">By {selectedProject.creatorId?.name || (selectedProject.ngos?.join(", ") || "Platform Admin")}</p>
                   </div>
                 </div>
 

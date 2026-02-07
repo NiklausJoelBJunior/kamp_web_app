@@ -18,6 +18,7 @@ import AdminApplications from "./pages/AdminApplications";
 import ProjectAdminLayout from "./layouts/ProjectAdminLayout";
 import ProjectAdminOverview from "./pages/ProjectAdminOverview";
 import ProjectAdminOrganisations from "./pages/ProjectAdminOrganisations";
+import ProjectAdminSupporters from "./pages/ProjectAdminSupporters";
 import AdminOrganisations from "./pages/AdminOrganisations";
 import OrgAdminLayout from "./layouts/OrgAdminLayout";
 import OrgAdminOverview from "./pages/OrgAdminOverview";
@@ -26,6 +27,7 @@ import OrgAdminSettings from "./pages/OrgAdminSettings";
 import AdminSupporters from "./pages/AdminSupporters";
 import SupporterAdminLayout from "./layouts/SupporterAdminLayout";
 import SupporterAdminOverview from "./pages/SupporterAdminOverview";
+import SupporterAdminProjects from "./pages/SupporterAdminProjects";
 import SupporterAdminSettings from "./pages/SupporterAdminSettings";
 import OrgSetup from "./pages/OrgSetup";
 import OrgDashboardHome from "./pages/OrgDashboardHome";
@@ -33,7 +35,14 @@ import OrgDashboardProjects from "./pages/OrgDashboardProjects";
 import SupporterSetup from "./pages/SupporterSetup";
 import SupporterDashboardHome from "./pages/SupporterDashboardHome";
 import SupporterDashboardProjects from "./pages/SupporterDashboardProjects";
+import OrgMyProjects from "./pages/OrgMyProjects";
+import SupporterMyProjects from "./pages/SupporterMyProjects";
+import UserProjectLayout from "./layouts/UserProjectLayout";
+import UserProjectOverview from "./pages/UserProjectOverview";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import OrgMembers from "./pages/OrgMembers";
+import OrgSettings from "./pages/OrgSettings";
+import SupporterSettings from "./pages/SupporterSettings";
 
 const router = createBrowserRouter([
   {
@@ -76,6 +85,7 @@ const router = createBrowserRouter([
           { index: true, element: <ProjectAdminOverview /> },
           { path: "overview", element: <ProjectAdminOverview /> },
           { path: "organisations", element: <ProjectAdminOrganisations /> },
+          { path: "supporters", element: <ProjectAdminSupporters /> },
         ],
       },
       {
@@ -94,6 +104,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <SupporterAdminOverview /> },
           { path: "overview", element: <SupporterAdminOverview /> },
+          { path: "projects", element: <SupporterAdminProjects /> },
           { path: "settings", element: <SupporterAdminSettings /> },
         ],
       },
@@ -110,6 +121,16 @@ const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <OrgDashboardHome /> },
       { path: "projects", element: <OrgDashboardProjects /> },
+      { path: "my-projects", element: <OrgMyProjects /> },
+      { path: "members", element: <OrgMembers /> },
+      { path: "settings", element: <OrgSettings /> },
+    ],
+  },
+  {
+    path: "/organization/my-projects/:id",
+    element: <UserProjectLayout />,
+    children: [
+      { index: true, element: <UserProjectOverview /> },
     ],
   },
   // ─── Community Supporter ───
@@ -123,6 +144,15 @@ const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <SupporterDashboardHome /> },
       { path: "projects", element: <SupporterDashboardProjects /> },
+      { path: "my-projects", element: <SupporterMyProjects /> },
+      { path: "settings", element: <SupporterSettings /> },
+    ],
+  },
+  {
+    path: "/supporter/my-projects/:id",
+    element: <UserProjectLayout />,
+    children: [
+      { index: true, element: <UserProjectOverview /> },
     ],
   },
 ]);

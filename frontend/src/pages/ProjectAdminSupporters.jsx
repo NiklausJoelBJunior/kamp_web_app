@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Building2, Mail, Clock, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Users, Mail, Clock, CheckCircle, XCircle, Eye } from "lucide-react";
 import ConfirmationModal from "../components/ConfirmationModal";
 
-const ProjectAdminOrganisations = () => {
+const ProjectAdminSupporters = () => {
   const { project, refreshCounts } = useOutletContext();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ const ProjectAdminOrganisations = () => {
       const res = await fetch(`http://localhost:3001/api/applications/project/${project._id}`);
       if (res.ok) {
         const data = await res.json();
-        setApplications(data.filter(app => app.applicantType === "organization"));
+        setApplications(data.filter(app => app.applicantType === "supporter"));
       }
     } catch (err) {
       console.error("Error fetching applications:", err);
@@ -87,18 +87,18 @@ const ProjectAdminOrganisations = () => {
     <div className="space-y-8 animate-fadeIn">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Organization Applications</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Supporter Applications</h2>
           <p className="text-sm text-slate-500 font-medium">
-            {applications.length} organization{applications.length !== 1 ? 's' : ''} applied for this project
+            {applications.length} supporter{applications.length !== 1 ? 's' : ''} applied for this project
           </p>
         </div>
       </div>
 
       {applications.length === 0 ? (
         <div className="py-20 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-center">
-          <Building2 className="w-12 h-12 text-slate-300 mb-4" />
+          <Users className="w-12 h-12 text-slate-300 mb-4" />
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">No applications yet</p>
-          <p className="text-sm text-slate-400 max-w-xs px-6">No organizations have applied to this project yet.</p>
+          <p className="text-sm text-slate-400 max-w-xs px-6">No supporters have applied to this project yet.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -106,12 +106,12 @@ const ProjectAdminOrganisations = () => {
             <div key={app._id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
-                    <Building2 className="w-6 h-6" />
+                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                    <Users className="w-6 h-6" />
                   </div>
                   <div>
                     <h3 className="font-black text-slate-800 uppercase tracking-tight">
-                      {app.userId?.name || "Unknown Organization"}
+                      {app.userId?.name || "Unknown Supporter"}
                     </h3>
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
                       {app.involvementType || "General Support"}
@@ -149,7 +149,7 @@ const ProjectAdminOrganisations = () => {
                       onClick={() => openConfirmModal(
                         "success",
                         "Approve Application",
-                        `Approve ${app.userId?.name || "this organization"} to join this project?`,
+                        `Approve ${app.userId?.name || "this supporter"} to join this project?`,
                         "Approve",
                         app._id,
                         "accepted"
@@ -168,7 +168,7 @@ const ProjectAdminOrganisations = () => {
                       onClick={() => openConfirmModal(
                         "danger",
                         "Reject Application",
-                        `Reject ${app.userId?.name || "this organization"}'s application? This action requires a reason.`,
+                        `Reject ${app.userId?.name || "this supporter"}'s application? This action requires a reason.`,
                         "Reject",
                         app._id,
                         "rejected",
@@ -186,7 +186,7 @@ const ProjectAdminOrganisations = () => {
                       onClick={() => openConfirmModal(
                         "success",
                         "Approve Application",
-                        `Approve ${app.userId?.name || "this organization"} to join this project?`,
+                        `Approve ${app.userId?.name || "this supporter"} to join this project?`,
                         "Approve",
                         app._id,
                         "accepted"
@@ -199,7 +199,7 @@ const ProjectAdminOrganisations = () => {
                       onClick={() => openConfirmModal(
                         "danger",
                         "Reject Application",
-                        `Reject ${app.userId?.name || "this organization"}'s application? This action requires a reason.`,
+                        `Reject ${app.userId?.name || "this supporter"}'s application? This action requires a reason.`,
                         "Reject",
                         app._id,
                         "rejected",
@@ -217,7 +217,7 @@ const ProjectAdminOrganisations = () => {
                   </div>
                 )}
                 {app.status === "rejected" && (
-                  <div className="flex-1 bg-red-50 text-red-700 py-2 rounded-lg font-black text-[10px] uppercase  tracking-widest text-center">
+                  <div className="flex-1 bg-red-50 text-red-700 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest text-center">
                     ✕ Rejected
                     {app.rejectionReason && (
                       <span className="block italic text-[8px] mt-1 normal-case font-medium">
@@ -251,4 +251,4 @@ const ProjectAdminOrganisations = () => {
   );
 };
 
-export default ProjectAdminOrganisations;
+export default ProjectAdminSupporters;
